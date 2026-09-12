@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DetectorIA - Análise e Detecção de Texto Sintético</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Cabeçalho / Navbar -->
+    <header class="navbar">
+        <div class="logo-container">
+            <span class="logo-icon">🔍</span>
+            <span class="logo-text">Detector<span class="highlight">IA</span></span>
+        </div>
+        <nav>
+            <a href="#analise" class="nav-link active">Nova Análise</a>
+            <a href="#historico" class="nav-link">Histórico</a>
+            <a href="#sobre" class="nav-link">Sobre o Projeto</a>
+        </nav>
+        <div class="user-profile">
+            <span class="user-name">Gustavo Neves</span>
+            <div class="avatar">G</div>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="main-container">
+        
+        <!-- Hero Section -->
+        <section class="hero-section">
+            <h1>Análise e Detecção de Textos por IA</h1>
+            <p>Submeta seu texto para verificar a probabilidade de autoria humana ou sintética através de métricas estatísticas de PLN.</p>
+        </section>
+
+        <!-- Formulário de Submissão -->
+        <section class="card-box" id="analise">
+            <div class="card-header">
+                <h2>Submeter Conteúdo</h2>
+                <span class="word-limit">Limite: 10.000 palavras</span>
+            </div>
+
+            <div class="input-group">
+                <textarea id="text-input" placeholder="Cole seu texto aqui ou insira um arquivo abaixo..."></textarea>
+                
+                <!-- Contadores posicionados logo abaixo do textarea -->
+                <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem; color: #888;">
+                    <span id="char-count">Caracteres: 0</span>
+                    <span id="word-count">Palavras: 0</span>
+                </div>
+            </div>
+
+            <div class="action-bar" style="margin-top: 15px;">
+                <div class="file-upload">
+                    <label for="file-input" class="btn-secondary">
+                        <span class="icon">📁</span> Anexar Arquivo (.pdf, .docx, .txt)
+                    </label>
+                    <input type="file" id="file-input" accept=".pdf,.docx,.txt" hidden>
+                    <span id="file-name" class="file-name-display">Nenhum arquivo selecionado</span>
+                </div>
+
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button type="button" id="btn-demo" class="btn-secondary" style="font-size: 0.85rem; padding: 10px 14px;">
+                        📝 Exemplo Demo
+                    </button>
+                    <button id="btn-analyze" class="btn-primary">
+                        <span class="icon">⚡</span> Analisar Texto
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Painel de Resultados -->
+        <section class="card-box results-section" id="resultados" style="display: none;">
+            <div class="card-header">
+                <h2>Resultado da Análise</h2>
+                <button class="btn-export" onclick="window.print()">📄 Exportar Relatório</button>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card" data-metric="score">
+                    <span class="metric-title">Probabilidade de IA</span>
+                    <span class="metric-value">--%</span>
+                    <span class="metric-status">--</span>
+                </div>
+
+                <div class="metric-card" data-metric="perplexity">
+                    <span class="metric-title">Perplexidade</span>
+                    <span class="metric-value">--</span>
+                    <span class="metric-sub">Padrão de imprevisibilidade</span>
+                </div>
+
+                <div class="metric-card" data-metric="burstiness">
+                    <span class="metric-title">Burstiness</span>
+                    <span class="metric-value">--</span>
+                    <span class="metric-sub">Variabilidade das frases</span>
+                </div>
+            </div>
+
+            <div class="heatmap-container">
+                <h3>Análise por Parágrafo (Mapa de Calor)</h3>
+                <div class="heatmap-content"></div>
+            </div>
+        </section>
+
+        <!-- Seção: Histórico de Análises -->
+        <section class="card-box" id="historico">
+            <div class="card-header">
+                <h2>Histórico de Análises</h2>
+                <button id="btn-clear-history" class="btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;">Limpar Histórico</button>
+            </div>
+            <div id="history-list" class="history-list">
+                <p style="color: #888; font-size: 0.9rem;">Nenhuma análise realizada ainda.</p>
+            </div>
+        </section>
+
+        <!-- Seção: Sobre o Projeto -->
+        <section class="card-box" id="sobre">
+            <div class="card-header">
+                <h2>Sobre o Projeto</h2>
+            </div>
+            <div class="about-content" style="line-height: 1.6; color: #ccc;">
+                <p>O <strong>DetectorIA</strong> é uma ferramenta acadêmica voltada à análise estatística e detecção de textos gerados sinteticamente por IA Generativa (como ChatGPT, Claude e Gemini).</p>
+                <br>
+                <h3>Como funciona a detecção?</h3>
+                <p>A ferramenta utiliza conceitos de Processamento de Linguagem Natural (PLN) baseados em duas métricas principais:</p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li><strong>Perplexidade:</strong> Mede o quão previsível é a escolha das palavras. Textos de IA tendem a ter baixa perplexidade (escolhas muito prováveis e previsíveis).</li>
+                    <li><strong>Burstiness:</strong> Mede a variação no tamanho e estrutura das frases. Textos humanos possuem alta variabilidade (misturam frases curtas e longas), enquanto IAs mantêm um ritmo uniforme.</li>
+                </ul>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        <p>DetectorIA &copy; 2026 - Trabalho de Conclusão de Curso (Sistemas de Informação - UMC)</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
