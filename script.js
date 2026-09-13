@@ -1,3 +1,5 @@
+const API_URL = "http://127.0.0.1:8000/api";
+
 document.addEventListener("DOMContentLoaded", () => {
     const btnAnalyze = document.getElementById("btn-analyze");
     const textInput = document.getElementById("text-input");
@@ -10,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const charCount = document.getElementById("char-count");
     const wordCount = document.getElementById("word-count");
 
-    // Carrega o histórico salvo no início
+    // Carrega o histórico do banco MySQL logo ao abrir a página
     renderHistory();
 
     // 1. Contador de Caracteres e Palavras em Tempo Real
@@ -26,7 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 2. Botão de Carregar Exemplo Demo
     if (btnDemo && textInput) {
         btnDemo.addEventListener("click", () => {
-            textInput.value = "O avanço acelerado da inteligência artificial generativa tem redefinido os paradigmas da comunicação digital e da produção de conteúdo. Ferramentas baseadas em modelos de linguagem de grande escala demonstram uma capacidade notável de sintetizar informações complexas. Contudo, vale ressaltar que essa evolução contínua impõe desafios éticos significativos, demandando o desenvolvimento de métodos computacionais robustos.";
+            textInput.value = "O avanço acelerado da inteligência artificial generativa tem redefinido os paradigms da comunicação digital e da produção de conteúdo. Ferramentas baseadas em modelos de linguagem de grande escala demonstram uma capacidade notável de sintetizar informações complexas. Contudo, vale ressaltar que essa evolução contínua impõe desafios éticos significativos, demandando o desenvolvimento de métodos computacionais robustos.";
             textInput.dispatchEvent(new Event('input'));
         });
     }
@@ -47,9 +49,9 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // 4. Ação do Botão Analisar
+    // 4. Ação do Botão Analisar (Integrada ao Backend / MySQL)
     if (btnAnalyze && textInput) {
-        btnAnalyze.addEventListener("click", () => {
+        btnAnalyze.addEventListener("click", async () => {
             const text = textInput.value.trim();
 
             if (!text) {
@@ -57,31 +59,40 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            btnAnalyze.innerHTML = "⏳ Analisando...";
+            btnAnalyze.innerHTML = "⏳ Analisando e salvando...";
             btnAnalyze.disabled = true;
 
-            setTimeout(() => {
-                const result = runDetection(text);
-                
-                btnAnalyze.innerHTML = '<span class="icon">⚡</span> Analisar Texto';
-                btnAnalyze.disabled = false;
+            // 1. Executa o seu algoritmo estatístico local no front-end
+            const result = runDetection(text);
 
-                if (resultsSection) {
-                    resultsSection.style.display = "block";
-                    resultsSection.scrollIntoView({ behavior: "smooth" });
-                }
+            if (resultsSection) {
+                resultsSection.style.display = "block";
+                resultsSection.scrollIntoView({ behavior: "smooth" });
+            }
 
-                // Salva no histórico local
-                saveToHistory(text, result.globalScore);
-            }, 600);
+            // 2. Persiste o resultado no banco de dados MySQL via FastAPI
+            await saveToHistory(text, result.globalScore);
+
+            btnAnalyze.innerHTML = '<span class="icon">⚡</span> Analisar Texto';
+            btnAnalyze.disabled = false;
         });
     }
 
-    // 5. Limpar Histórico
+    // 5. Limpar Histórico (Remoção no MySQL via API)
     if (btnClearHistory) {
-        btnClearHistory.addEventListener("click", () => {
-            localStorage.removeItem("detector_ia_history");
-            renderHistory();
+        btnClearHistory.addEventListener("click", async () => {
+            if (!confirm("Tem certeza que deseja apagar todo o histórico do banco de dados?")) return;
+
+            try {
+                const response = await fetch(`${API_URL}/historico`, { method: "DELETE" });
+                if (response.ok) {
+                    renderHistory();
+                } else {
+                    alert("Erro ao limpar histórico no banco de dados.");
+                }
+            } catch (error) {
+                console.error("Erro ao apagar histórico:", error);
+            }
         });
     }
 
@@ -91,7 +102,6 @@ document.addEventListener("DOMContentLoaded", () => {
         let sentenceLengths = [];
         let paragraphData = [];
 
-        // Lista de marcadores formais típicos de IA em português
         const aiKeywords = [
             "ademais", "portanto", "em suma", "por conseguinte", "nesse contexto",
             "vale ressaltar", "é fundamental", "sob essa ótica", "crucial",
@@ -110,24 +120,21 @@ document.addEventListener("DOMContentLoaded", () => {
             const avgWordLen = words.length > 0 ? words.join("").length / words.length : 0;
             const avgSentLen = sentences.length > 0 ? words.length / sentences.length : words.length;
 
-            // Fator Marcadores Discursivos
             let keywordCount = 0;
             aiKeywords.forEach(kw => {
                 if (paragraph.toLowerCase().includes(kw)) keywordCount++;
             });
 
-            // Diversidade Vocabular (TTR - Type Token Ratio)
             const uniqueWords = new Set(words).size;
             const vocabularyRichness = words.length > 0 ? uniqueWords / words.length : 1;
 
-            // Cálculo Combinado de Probabilidade
-            let pScore = 35; // Base
-            pScore += (avgWordLen - 4.2) * 8; // Palavras longas/formais
-            pScore += (14 - Math.abs(avgSentLen - 16)) * 1.5; // Frases uniformes
-            pScore += keywordCount * 12; // Presença de conectivos de IA
-            pScore -= (vocabularyRichness - 0.5) * 20; // Riqueza vocabular alta reduz a chance de IA
+            let pScore = 35;
+            pScore += (avgWordLen - 4.2) * 8;
+            pScore += (14 - Math.abs(avgSentLen - 16)) * 1.5;
+            pScore += keywordCount * 12;
+            pScore -= (vocabularyRichness - 0.5) * 20;
 
-            if (words.length < 6) pScore = 15; // Regra para textos muito curtos
+            if (words.length < 6) pScore = 15;
 
             pScore = Math.min(Math.max(Math.round(pScore), 5), 98);
 
@@ -145,7 +152,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const burstinessVal = sentenceLengths.length > 1 ? (stdDev / (meanSent || 1)).toFixed(2) : "0.00";
         const perplexityVal = (110 - globalScore * 0.85).toFixed(1);
 
-        // Atualização dos Cards de Métricas
         const scoreCard = document.querySelector('[data-metric="score"]');
         const perplexityCard = document.querySelector('[data-metric="perplexity"]');
         const burstinessCard = document.querySelector('[data-metric="burstiness"]');
@@ -170,7 +176,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (perplexityCard) perplexityCard.querySelector(".metric-value").textContent = perplexityVal;
         if (burstinessCard) burstinessCard.querySelector(".metric-value").textContent = burstinessVal;
 
-        // Renderiza o Mapa de Calor por Parágrafo
         const heatmapContent = document.querySelector(".heatmap-content");
         if (heatmapContent) {
             heatmapContent.innerHTML = "";
@@ -188,44 +193,61 @@ document.addEventListener("DOMContentLoaded", () => {
         return { globalScore };
     }
 
-    // 7. Funções de Histórico (LocalStorage)
-    function saveToHistory(text, score) {
-        let history = JSON.parse(localStorage.getItem("detector_ia_history") || "[]");
-        
-        const newItem = {
-            id: Date.now(),
-            snippet: text.substring(0, 60) + (text.length > 60 ? "..." : ""),
-            score: score,
-            date: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-        };
+    // 7. Salva no Banco MySQL via POST /api/analisar
+    async function saveToHistory(text, score) {
+        try {
+            const response = await fetch(`${API_URL}/analisar`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    texto: text,
+                    percentual_ia: score
+                })
+            });
 
-        history.unshift(newItem);
-        if (history.length > 5) history.pop();
-
-        localStorage.setItem("detector_ia_history", JSON.stringify(history));
-        renderHistory();
+            if (response.ok) {
+                await renderHistory(); // Recarrega a lista trazendo os dados do MySQL
+            }
+        } catch (error) {
+            console.error("Erro ao salvar no banco de dados:", error);
+            alert("Atenção: A análise foi calculada na tela, mas não foi possível salvar no MySQL. Verifique se o servidor FastAPI está ligado.");
+        }
     }
 
-    function renderHistory() {
+    // 8. Busca o histórico do MySQL via GET /api/historico
+    async function renderHistory() {
         if (!historyList) return;
-        
-        let history = JSON.parse(localStorage.getItem("detector_ia_history") || "[]");
 
-        if (history.length === 0) {
-            historyList.innerHTML = `<p style="color: #888; font-size: 0.9rem;">Nenhuma análise realizada ainda.</p>`;
-            return;
+        try {
+            const response = await fetch(`${API_URL}/historico`);
+            if (!response.ok) return;
+
+            const history = await response.json();
+
+            if (history.length === 0) {
+                historyList.innerHTML = `<p style="color: #888; font-size: 0.9rem;">Nenhuma análise realizada ainda.</p>`;
+                return;
+            }
+
+            historyList.innerHTML = history.map(item => {
+                const dateObj = new Date(item.data_criacao);
+                const formattedTime = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const snippet = item.texto_analisado.substring(0, 60) + (item.texto_analisado.length > 60 ? "..." : "");
+
+                return `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <div>
+                            <span style="font-size: 0.85rem; color: #888;">[${formattedTime}]</span>
+                            <span style="font-size: 0.95rem; margin-left: 8px;">"${snippet}"</span>
+                        </div>
+                        <span style="font-weight: 600; font-size: 0.9rem; color: ${item.percentual_ia >= 70 ? '#ff4d4d' : (item.percentual_ia >= 40 ? '#ffcc00' : '#00cc66')}">
+                            ${item.percentual_ia}% IA
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        } catch (error) {
+            console.error("Erro ao buscar histórico do banco:", error);
         }
-
-        historyList.innerHTML = history.map(item => `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                <div>
-                    <span style="font-size: 0.85rem; color: #888;">[${item.date}]</span>
-                    <span style="font-size: 0.95rem; margin-left: 8px;">"${item.snippet}"</span>
-                </div>
-                <span style="font-weight: 600; font-size: 0.9rem; color: ${item.score >= 70 ? '#ff4d4d' : (item.score >= 40 ? '#ffcc00' : '#00cc66')}">
-                    ${item.score}% IA
-                </span>
-            </div>
-        `).join('');
     }
 });
