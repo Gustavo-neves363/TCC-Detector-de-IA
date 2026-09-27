@@ -1,21 +1,54 @@
 const API_URL = "http://127.0.0.1:8000/api";
 
+let currentUser = JSON.parse(localStorage.getItem("detector_user")) || null;
+let isRegisterMode = false;
+let myChart = null;
+
+// Função auxiliar para tratar sessão expirada / token inválido (401)
+function handleUnauthorized() {
+    if (currentUser) {
+        localStorage.removeItem("detector_user");
+        currentUser = null;
+        updateUserInterface();
+        alert("A sua sessão expirou ou o token é inválido. Por favor, faça login novamente.");
+    }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const btnAnalyze = document.getElementById("btn-analyze");
     const textInput = document.getElementById("text-input");
     const resultsSection = document.getElementById("resultados");
     const fileInput = document.getElementById("file-input");
     const fileNameDisplay = document.getElementById("file-name");
-    const historyList = document.getElementById("history-list");
     const btnClearHistory = document.getElementById("btn-clear-history");
     const btnDemo = document.getElementById("btn-demo");
     const charCount = document.getElementById("char-count");
     const wordCount = document.getElementById("word-count");
+    const btnLogout = document.getElementById("btn-logout");
+    const formAuth = document.getElementById("form-auth");
 
-    // Carrega o histórico do banco MySQL logo ao abrir a página
+    // Inicialização da interface
+    updateUserInterface();
     renderHistory();
+    renderLogs();
 
-    // 1. Contador de Caracteres e Palavras em Tempo Real
+    // Evento Form Autenticação (Login / Cadastro)
+    if (formAuth) {
+        formAuth.addEventListener("submit", handleAuthSubmit);
+    }
+
+    // Logout
+    if (btnLogout) {
+        btnLogout.addEventListener("click", () => {
+            localStorage.removeItem("detector_user");
+            currentUser = null;
+            updateUserInterface();
+            alert("Sessão encerrada com sucesso.");
+            window.location.href = "index.html";
+        });
+    }
+
+    // Contadores de Caracteres e Palavras
     if (textInput) {
         textInput.addEventListener("input", () => {
             const text = textInput.value;
@@ -25,19 +58,23 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // 2. Botão de Carregar Exemplo Demo
+    // Botão Texto de Exemplo (Demo)
     if (btnDemo && textInput) {
         btnDemo.addEventListener("click", () => {
-            textInput.value = "O avanço acelerado da inteligência artificial generativa tem redefinido os paradigms da comunicação digital e da produção de conteúdo. Ferramentas baseadas em modelos de linguagem de grande escala demonstram uma capacidade notável de sintetizar informações complexas. Contudo, vale ressaltar que essa evolução contínua impõe desafios éticos significativos, demandando o desenvolvimento de métodos computacionais robustos.";
+            textInput.value = "É importante destacar que a inteligência artificial desempenha um papel fundamental no desenvolvimento da sociedade moderna. Além disso, a implementação de sistemas inteligentes otimiza processos e aumenta a eficiência operacional. Ademais, a análise de dados em larga escala permite a tomada de decisões estratégicas de forma rápida e precisa. Por conseguinte, as organizações que adotam estas tecnologias obtêm uma vantagem competitiva significativa no mercado. Em suma, a transformação digital impulsionada pela inteligência artificial é essencial para o progresso contínuo de diversos setores.";
             textInput.dispatchEvent(new Event('input'));
         });
     }
 
-    // 3. Upload de Arquivos (.txt)
+    // Leitura de Arquivo (.txt)
     if (fileInput) {
         fileInput.addEventListener("change", (e) => {
             const file = e.target.files[0];
             if (file) {
+                if (!file.name.endsWith('.txt') && file.type !== "text/plain") {
+                    alert("Por favor, selecione um arquivo no formato de texto simples (.txt).");
+                    return;
+                }
                 if (fileNameDisplay) fileNameDisplay.textContent = file.name;
                 const reader = new FileReader();
                 reader.onload = (event) => {
@@ -49,205 +86,364 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // 4. Ação do Botão Analisar (Integrada ao Backend / MySQL)
+    // Botão Analisar Texto
     if (btnAnalyze && textInput) {
         btnAnalyze.addEventListener("click", async () => {
             const text = textInput.value.trim();
 
             if (!text) {
-                alert("Por favor, digite ou cole um texto para analisar.");
+                alert("Insira um texto para realizar a verificação.");
                 return;
             }
 
-            btnAnalyze.innerHTML = "⏳ Analisando e salvando...";
+            btnAnalyze.innerHTML = "⏳ Processando...";
             btnAnalyze.disabled = true;
 
-            // 1. Executa o seu algoritmo estatístico local no front-end
-            const result = runDetection(text);
-
-            if (resultsSection) {
-                resultsSection.style.display = "block";
-                resultsSection.scrollIntoView({ behavior: "smooth" });
-            }
-
-            // 2. Persiste o resultado no banco de dados MySQL via FastAPI
-            await saveToHistory(text, result.globalScore);
-
-            btnAnalyze.innerHTML = '<span class="icon">⚡</span> Analisar Texto';
-            btnAnalyze.disabled = false;
-        });
-    }
-
-    // 5. Limpar Histórico (Remoção no MySQL via API)
-    if (btnClearHistory) {
-        btnClearHistory.addEventListener("click", async () => {
-            if (!confirm("Tem certeza que deseja apagar todo o histórico do banco de dados?")) return;
-
             try {
-                const response = await fetch(`${API_URL}/historico`, { method: "DELETE" });
+                const headers = { "Content-Type": "application/json" };
+                if (currentUser && currentUser.token) {
+                    headers["Authorization"] = `Bearer ${currentUser.token}`;
+                }
+
+                const response = await fetch(`${API_URL}/analisar`, {
+                    method: "POST",
+                    headers: headers,
+                    body: JSON.stringify({ texto: text })
+                });
+
+                if (response.status === 401) {
+                    handleUnauthorized();
+                    return;
+                }
+
                 if (response.ok) {
-                    renderHistory();
+                    const data = await response.json();
+                    
+                    document.getElementById("res-score").textContent = `${data.percentual_ia}%`;
+                    document.getElementById("res-perplexity").textContent = data.perplexidade;
+                    document.getElementById("res-burstiness").textContent = data.burstiness;
+                    
+                    const statusEl = document.getElementById("res-status");
+                    
+                    if (data.percentual_ia > 60) {
+                        statusEl.textContent = "Alta probabilidade sintética (IA)";
+                        statusEl.style.color = "var(--accent-red, #ef4444)";
+                    } else if (data.percentual_ia > 30) {
+                        statusEl.textContent = "Probabilidade Média / Texto Misto";
+                        statusEl.style.color = "var(--accent-yellow, #f59e0b)";
+                    } else {
+                        statusEl.textContent = "Autoria predominantemente Humana";
+                        statusEl.style.color = "var(--accent-green, #10b981)";
+                    }
+
+                    renderChart(data.percentual_ia);
+                    renderHeatmap(data.paragrafos);
+
+                    if (resultsSection) {
+                        resultsSection.style.display = "block";
+                        resultsSection.scrollIntoView({ behavior: "smooth" });
+                    }
+
+                    await renderHistory();
+                    await renderLogs();
                 } else {
-                    alert("Erro ao limpar histórico no banco de dados.");
+                    const err = await response.json();
+                    alert(err.detail || "Erro ao realizar análise.");
                 }
             } catch (error) {
-                console.error("Erro ao apagar histórico:", error);
+                console.error("Erro na requisição:", error);
+                alert("Backend indisponível. Verifique se o servidor FastAPI está ligado.");
+            } finally {
+                btnAnalyze.innerHTML = "⚡ Analisar Texto";
+                btnAnalyze.disabled = false;
             }
         });
     }
 
-    // 6. Algoritmo Principal de Detecção de IA
-    function runDetection(fullText) {
-        const paragraphs = fullText.split(/\n+/).filter(p => p.trim().length > 0);
-        let sentenceLengths = [];
-        let paragraphData = [];
-
-        const aiKeywords = [
-            "ademais", "portanto", "em suma", "por conseguinte", "nesse contexto",
-            "vale ressaltar", "é fundamental", "sob essa ótica", "crucial",
-            "salientar", "fundamentalmente", "relevante notar", "em síntese"
-        ];
-
-        paragraphs.forEach(paragraph => {
-            const sentences = paragraph.split(/[.!?]+/).filter(s => s.trim().length > 0);
-            const words = paragraph.toLowerCase().match(/\b\w+\b/g) || [];
+    // Botão Limpar Histórico
+    if (btnClearHistory) {
+        btnClearHistory.addEventListener("click", async () => {
+            if (!confirm("Tem certeza que deseja limpar o histórico de análises?")) return;
             
-            sentences.forEach(s => {
-                const sWords = s.match(/\b\w+\b/g) || [];
-                if (sWords.length > 0) sentenceLengths.push(sWords.length);
-            });
-
-            const avgWordLen = words.length > 0 ? words.join("").length / words.length : 0;
-            const avgSentLen = sentences.length > 0 ? words.length / sentences.length : words.length;
-
-            let keywordCount = 0;
-            aiKeywords.forEach(kw => {
-                if (paragraph.toLowerCase().includes(kw)) keywordCount++;
-            });
-
-            const uniqueWords = new Set(words).size;
-            const vocabularyRichness = words.length > 0 ? uniqueWords / words.length : 1;
-
-            let pScore = 35;
-            pScore += (avgWordLen - 4.2) * 8;
-            pScore += (14 - Math.abs(avgSentLen - 16)) * 1.5;
-            pScore += keywordCount * 12;
-            pScore -= (vocabularyRichness - 0.5) * 20;
-
-            if (words.length < 6) pScore = 15;
-
-            pScore = Math.min(Math.max(Math.round(pScore), 5), 98);
-
-            paragraphData.push({ text: paragraph, score: pScore });
-        });
-
-        const globalScore = Math.round(
-            paragraphData.reduce((acc, p) => acc + p.score, 0) / (paragraphData.length || 1)
-        );
-
-        const meanSent = sentenceLengths.reduce((a, b) => a + b, 0) / (sentenceLengths.length || 1);
-        const variance = sentenceLengths.reduce((a, b) => a + Math.pow(b - meanSent, 2), 0) / (sentenceLengths.length || 1);
-        const stdDev = Math.sqrt(variance);
-        
-        const burstinessVal = sentenceLengths.length > 1 ? (stdDev / (meanSent || 1)).toFixed(2) : "0.00";
-        const perplexityVal = (110 - globalScore * 0.85).toFixed(1);
-
-        const scoreCard = document.querySelector('[data-metric="score"]');
-        const perplexityCard = document.querySelector('[data-metric="perplexity"]');
-        const burstinessCard = document.querySelector('[data-metric="burstiness"]');
-
-        if (scoreCard) {
-            scoreCard.querySelector(".metric-value").textContent = `${globalScore}%`;
-            const statusEl = scoreCard.querySelector(".metric-status");
-            if (statusEl) {
-                if (globalScore >= 70) {
-                    statusEl.textContent = "Alta probabilidade sintética (IA)";
-                    statusEl.style.color = "#ff4d4d";
-                } else if (globalScore >= 40) {
-                    statusEl.textContent = "Probabilidade Média / Texto Misto";
-                    statusEl.style.color = "#ffcc00";
-                } else {
-                    statusEl.textContent = "Alta probabilidade de autoria Humana";
-                    statusEl.style.color = "#00cc66";
+            try {
+                const headers = {};
+                if (currentUser && currentUser.token) {
+                    headers["Authorization"] = `Bearer ${currentUser.token}`;
                 }
+
+                const res = await fetch(`${API_URL}/historico`, { 
+                    method: "DELETE",
+                    headers: headers 
+                });
+
+                if (res.status === 401) {
+                    handleUnauthorized();
+                    return;
+                }
+
+                if (res.ok) {
+                    await renderHistory();
+                    await renderLogs();
+                } else {
+                    alert("Não foi possível limpar o histórico.");
+                }
+            } catch (e) {
+                console.error("Erro ao limpar histórico:", e);
             }
-        }
-
-        if (perplexityCard) perplexityCard.querySelector(".metric-value").textContent = perplexityVal;
-        if (burstinessCard) burstinessCard.querySelector(".metric-value").textContent = burstinessVal;
-
-        const heatmapContent = document.querySelector(".heatmap-content");
-        if (heatmapContent) {
-            heatmapContent.innerHTML = "";
-            paragraphData.forEach(item => {
-                const p = document.createElement("p");
-                let pClass = item.score >= 70 ? "p-ai-high" : (item.score >= 40 ? "p-ai-medium" : "p-human");
-                let label = item.score >= 40 ? `${item.score}% IA` : `${100 - item.score}% Humano`;
-
-                p.className = `paragraph ${pClass}`;
-                p.innerHTML = `<span class="badge">${label}</span> ${item.text}`;
-                heatmapContent.appendChild(p);
-            });
-        }
-
-        return { globalScore };
-    }
-
-    // 7. Salva no Banco MySQL via POST /api/analisar
-    async function saveToHistory(text, score) {
-        try {
-            const response = await fetch(`${API_URL}/analisar`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    texto: text,
-                    percentual_ia: score
-                })
-            });
-
-            if (response.ok) {
-                await renderHistory(); // Recarrega a lista trazendo os dados do MySQL
-            }
-        } catch (error) {
-            console.error("Erro ao salvar no banco de dados:", error);
-            alert("Atenção: A análise foi calculada na tela, mas não foi possível salvar no MySQL. Verifique se o servidor FastAPI está ligado.");
-        }
-    }
-
-    // 8. Busca o histórico do MySQL via GET /api/historico
-    async function renderHistory() {
-        if (!historyList) return;
-
-        try {
-            const response = await fetch(`${API_URL}/historico`);
-            if (!response.ok) return;
-
-            const history = await response.json();
-
-            if (history.length === 0) {
-                historyList.innerHTML = `<p style="color: #888; font-size: 0.9rem;">Nenhuma análise realizada ainda.</p>`;
-                return;
-            }
-
-            historyList.innerHTML = history.map(item => {
-                const dateObj = new Date(item.data_criacao);
-                const formattedTime = dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                const snippet = item.texto_analisado.substring(0, 60) + (item.texto_analisado.length > 60 ? "..." : "");
-
-                return `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-                        <div>
-                            <span style="font-size: 0.85rem; color: #888;">[${formattedTime}]</span>
-                            <span style="font-size: 0.95rem; margin-left: 8px;">"${snippet}"</span>
-                        </div>
-                        <span style="font-weight: 600; font-size: 0.9rem; color: ${item.percentual_ia >= 70 ? '#ff4d4d' : (item.percentual_ia >= 40 ? '#ffcc00' : '#00cc66')}">
-                            ${item.percentual_ia}% IA
-                        </span>
-                    </div>
-                `;
-            }).join('');
-        } catch (error) {
-            console.error("Erro ao buscar histórico do banco:", error);
-        }
+        });
     }
 });
+
+// --- RENDERIZAÇÃO DO GRÁFICO (CHART.JS) ---
+function renderChart(score) {
+    const ctx = document.getElementById('scoreChart').getContext('2d');
+    if (myChart) myChart.destroy();
+
+    let highlightColor = '#10b981';
+    if (score > 60) {
+        highlightColor = '#ef4444';
+    } else if (score > 30) {
+        highlightColor = '#f59e0b';
+    }
+
+    myChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ["IA", "Humano"],
+            datasets: [{
+                data: [score, 100 - score],
+                backgroundColor: [highlightColor, '#334155'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            cutout: '75%',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: { enabled: true } 
+            }
+        }
+    });
+}
+
+// --- RENDERIZAÇÃO DO HEATMAP ---
+function renderHeatmap(paragrafos) {
+    const container = document.getElementById("heatmap-content");
+    if (!container || !paragrafos) return;
+
+    container.innerHTML = paragrafos.map(p => {
+        let classeCor = "p-human";
+        let label = "Humano";
+
+        if (p.score > 60) {
+            classeCor = "p-ai-high";
+            label = "Alta Probabilidade de IA";
+        } else if (p.score > 30) {
+            classeCor = "p-ai-medium";
+            label = "Suspeito / Misto";
+        }
+
+        return `
+            <div class="paragraph ${classeCor}">
+                <span class="badge">${label} (${p.score}%)</span>
+                <p style="margin-top: 5px;">${p.texto}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+// --- GERENCIAMENTO DE INTERFACE DE USUÁRIO ---
+function updateUserInterface() {
+    const displayName = document.getElementById("display-user-name");
+    const displayAvatar = document.getElementById("display-avatar");
+    const btnOpenLogin = document.getElementById("btn-open-login");
+    const btnLogout = document.getElementById("btn-logout");
+    const navLogs = document.getElementById("nav-logs");
+    const logsSection = document.getElementById("logs-section");
+
+    if (currentUser) {
+        if (displayName) displayName.textContent = currentUser.nome;
+        if (displayAvatar) displayAvatar.textContent = currentUser.nome.charAt(0).toUpperCase();
+        if (btnOpenLogin) btnOpenLogin.style.display = "none";
+        if (btnLogout) btnLogout.style.display = "inline-block";
+
+        if (currentUser.perfil === "admin") {
+            if (navLogs) navLogs.style.display = "inline-block";
+            if (logsSection) logsSection.style.display = "block";
+        } else {
+            if (navLogs) navLogs.style.display = "none";
+            if (logsSection) logsSection.style.display = "none";
+        }
+    } else {
+        if (displayName) displayName.textContent = "Visitante";
+        if (displayAvatar) displayAvatar.textContent = "?";
+        if (btnOpenLogin) btnOpenLogin.style.display = "inline-block";
+        if (btnLogout) btnLogout.style.display = "none";
+        if (navLogs) navLogs.style.display = "none";
+        if (logsSection) logsSection.style.display = "none";
+    }
+}
+
+// --- CONTROLE DE MODAIS E AUTENTICAÇÃO ---
+function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "flex";
+}
+
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+}
+
+function toggleAuthMode() {
+    isRegisterMode = !isRegisterMode;
+    const regFields = document.getElementById("register-fields");
+    const lgpdConsent = document.getElementById("lgpd-consent");
+    
+    if (regFields) regFields.style.display = isRegisterMode ? "block" : "none";
+    if (lgpdConsent) lgpdConsent.style.display = isRegisterMode ? "flex" : "none";
+    
+    const authTitle = document.getElementById("auth-title");
+    const authBtnSubmit = document.getElementById("auth-btn-submit");
+    if (authTitle) authTitle.textContent = isRegisterMode ? "Cadastro de Usuário" : "Acesso ao Sistema";
+    if (authBtnSubmit) authBtnSubmit.textContent = isRegisterMode ? "Cadastrar" : "Entrar";
+
+    const toggleText = document.getElementById("auth-toggle-text");
+    const toggleLink = document.getElementById("auth-toggle-link");
+    if (toggleText) toggleText.textContent = isRegisterMode ? "Já tem uma conta?" : "Não tem conta?";
+    if (toggleLink) toggleLink.textContent = isRegisterMode ? "Faça Login" : "Cadastre-se";
+}
+
+async function handleAuthSubmit(e) {
+    if (e) e.preventDefault();
+    const email = document.getElementById("auth-email").value;
+    const rawSenha = document.getElementById("auth-password").value;
+
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder("utf-8");
+    const bytesSenha = encoder.encode(rawSenha).slice(0, 72);
+    const senha = decoder.decode(bytesSenha);
+
+    if (isRegisterMode) {
+        const nome = document.getElementById("auth-name").value;
+        const lgpdCheck = document.getElementById("auth-lgpd-check").checked;
+
+        try {
+            const res = await fetch(`${API_URL}/auth/cadastrar`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ nome, email, senha, aceite_lgpd: lgpdCheck })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                alert("Cadastro realizado com sucesso! Faça seu login.");
+                toggleAuthMode();
+            } else {
+                alert(data.detail || "Erro ao cadastrar.");
+            }
+        } catch (err) {
+            alert("Erro de comunicação com o servidor.");
+        }
+    } else {
+        try {
+            const res = await fetch(`${API_URL}/auth/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, senha })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                currentUser = data;
+                localStorage.setItem("detector_user", JSON.stringify(data));
+                alert(`Bem-vindo, ${data.nome}!`);
+                window.location.href = "index.html";
+            } else {
+                alert(data.detail || "Falha na autenticação.");
+            }
+        } catch (err) {
+            alert("Erro de comunicação com o servidor.");
+        }
+    }
+}
+
+// --- RENDERIZAÇÃO DE HISTÓRICO ---
+async function renderHistory() {
+    const historyList = document.getElementById("history-list");
+    if (!historyList) return;
+
+    try {
+        const headers = {};
+        if (currentUser && currentUser.token) {
+            headers["Authorization"] = `Bearer ${currentUser.token}`;
+        }
+
+        const response = await fetch(`${API_URL}/historico`, { headers });
+        if (response.status === 401) {
+            handleUnauthorized();
+            return;
+        }
+        if (!response.ok) return;
+
+        const history = await response.json();
+        if (history.length === 0) {
+            historyList.innerHTML = `<p style="color: var(--text-muted, #9ca3af); font-size: 0.9rem;">Nenhuma análise realizada.</p>`;
+            return;
+        }
+
+        historyList.innerHTML = history.map(item => {
+            let color = 'var(--accent-green, #10b981)';
+            if (item.percentual_ia > 60) color = 'var(--accent-red, #ef4444)';
+            else if (item.percentual_ia > 30) color = 'var(--accent-yellow, #f59e0b)';
+
+            const preview = item.texto_analisado ? `${item.texto_analisado.substring(0, 50)}...` : 'Texto sem prévia';
+
+            return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1));">
+                    <span style="font-size: 0.9rem; color: #ccc;">"${preview}"</span>
+                    <span style="font-weight: 600; font-size: 0.9rem; color: ${color};">${item.percentual_ia}% IA</span>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error("Erro ao carregar histórico:", e);
+    }
+}
+
+// --- RENDERIZAÇÃO DE LOGS DE AUDITORIA (PAINEL ADMIN) ---
+async function renderLogs() {
+    const logsBody = document.getElementById("logs-table-body");
+    if (!logsBody || !currentUser || currentUser.perfil !== "admin") return;
+
+    try {
+        const headers = {};
+        if (currentUser && currentUser.token) {
+            headers["Authorization"] = `Bearer ${currentUser.token}`;
+        }
+
+        const response = await fetch(`${API_URL}/logs`, { headers });
+        if (response.status === 401) {
+            handleUnauthorized();
+            return;
+        }
+        if (!response.ok) return;
+
+        const logs = await response.json();
+        logsBody.innerHTML = logs.map(log => `
+            <tr>
+                <td style="color: var(--text-muted, #9ca3af);">${log.data_hora}</td>
+                <td>${log.usuario_email}</td>
+                <td><span style="background: var(--border-color, #374151); padding: 2px 6px; border-radius: 3px;">${log.acao}</span></td>
+                <td style="color: var(--text-muted, #9ca3af);">${log.ip_origem}</td>
+                <td style="color: ${log.status === 'SUCESSO' ? 'var(--accent-green, #10b981)' : 'var(--accent-red, #ef4444)'}">${log.status}</td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        console.error("Erro ao carregar logs:", e);
+    }
+}

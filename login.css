@@ -1,0 +1,48 @@
+@import url('style.css');
+
+/* ESTILOS DA TELA DE LOGIN DEDICADA */
+.login-page-body {
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
+}
+
+.login-container {
+    width: 100%;
+    max-width: 420px;
+    padding: 1.5rem;
+}
+
+.logo-login {
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    font-size: 1.8rem;
+}
+
+.modal-card-standalone {
+    margin-bottom: 0;
+}
+
+.auth-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+.login-back-link {
+    margin-top: 1.5rem;
+    text-align: center;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+}
+
+.login-back-link a {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: var(--transition);
+}
+
+.login-back-link a:hover {
+    color: var(--text-main);
+}

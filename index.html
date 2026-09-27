@@ -3,142 +3,162 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DetectorIA - Análise e Detecção de Texto Sintético</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>DetectorIA - Análise Avançada de Autoria</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-    <!-- Cabeçalho / Navbar -->
+    <!-- NAVBAR -->
     <header class="navbar">
         <div class="logo-container">
-            <span class="logo-icon">🔍</span>
+            <span class="logo-icon">⚡</span>
             <span class="logo-text">Detector<span class="highlight">IA</span></span>
         </div>
         <nav>
-            <a href="#analise" class="nav-link active">Nova Análise</a>
-            <a href="#historico" class="nav-link">Histórico</a>
-            <a href="#sobre" class="nav-link">Sobre o Projeto</a>
+            <a href="index.html" class="nav-link active">Detector</a>
+            <a href="#logs-section" id="nav-logs" class="nav-link" style="display: none;">Logs de Auditoria</a>
+            <a href="#" onclick="openModal('modal-lgpd')" class="nav-link">Privacidade (LGPD)</a>
         </nav>
         <div class="user-profile">
-            <span class="user-name">Gustavo Neves</span>
-            <div class="avatar">G</div>
+            <div class="avatar" id="display-avatar">?</div>
+            <span id="display-user-name">Visitante</span>
+            <a href="login.html" id="btn-open-login" class="btn-secondary btn-sm" style="text-decoration: none;">Entrar</a>
+            <button id="btn-logout" class="btn-danger btn-sm" style="display: none;">Sair</button>
         </div>
     </header>
 
-    <!-- Conteúdo Principal -->
+    <!-- MAIN CONTAINER -->
     <main class="main-container">
-        
-        <!-- Hero Section -->
+
         <section class="hero-section">
-            <h1>Análise e Detecção de Textos por IA</h1>
-            <p>Submeta seu texto para verificar a probabilidade de autoria humana ou sintética através de métricas estatísticas de PLN.</p>
+            <h1>Análise Avançada e Heatmap de IA</h1>
+            <p>Detecção profunda por inteligência artificial com inspeção parágrafo a parágrafo.</p>
         </section>
 
-        <!-- Formulário de Submissão -->
-        <section class="card-box" id="analise">
+        <!-- INPUT CARD -->
+        <section class="card-box">
             <div class="card-header">
-                <h2>Submeter Conteúdo</h2>
-                <span class="word-limit">Limite: 10.000 palavras</span>
+                <h2>Inserir Texto para Análise</h2>
+                <span class="word-limit" id="word-count">Palavras: 0</span>
             </div>
 
             <div class="input-group">
-                <textarea id="text-input" placeholder="Cole seu texto aqui ou insira um arquivo abaixo..."></textarea>
-                
-                <!-- Contadores posicionados logo abaixo do textarea -->
-                <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.85rem; color: #888;">
-                    <span id="char-count">Caracteres: 0</span>
-                    <span id="word-count">Palavras: 0</span>
-                </div>
+                <textarea id="text-input" placeholder="Cole o texto completo aqui para processamento..."></textarea>
             </div>
 
-            <div class="action-bar" style="margin-top: 15px;">
+            <div class="action-bar">
                 <div class="file-upload">
-                    <label for="file-input" class="btn-secondary">
-                        <span class="icon">📁</span> Anexar Arquivo (.pdf, .docx, .txt)
-                    </label>
-                    <input type="file" id="file-input" accept=".pdf,.docx,.txt" hidden>
-                    <span id="file-name" class="file-name-display">Nenhum arquivo selecionado</span>
+                    <label for="file-input" class="btn-secondary">📁 Enviar (.txt)</label>
+                    <input type="file" id="file-input" accept=".txt" style="display: none;">
+                    <span id="file-name" class="file-name-display"></span>
                 </div>
 
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button type="button" id="btn-demo" class="btn-secondary" style="font-size: 0.85rem; padding: 10px 14px;">
-                        📝 Exemplo Demo
-                    </button>
-                    <button id="btn-analyze" class="btn-primary">
-                        <span class="icon">⚡</span> Analisar Texto
-                    </button>
+                <div class="btn-group">
+                    <button id="btn-demo" class="btn-secondary">📝 Exemplo Demo</button>
+                    <button id="btn-analyze" class="btn-primary">⚡ Analisar Texto</button>
                 </div>
+            </div>
+            <div class="text-counter-footer">
+                <span class="word-limit" id="char-count">Caracteres: 0</span>
             </div>
         </section>
 
-        <!-- Painel de Resultados -->
-        <section class="card-box results-section" id="resultados" style="display: none;">
+        <!-- PAINEL DE RESULTADOS COM CHART.JS E HEATMAP -->
+        <section id="resultados" class="card-box" style="display: none;">
             <div class="card-header">
-                <h2>Resultado da Análise</h2>
-                <button class="btn-export" onclick="window.print()">📄 Exportar Relatório</button>
+                <h2>Resultado e Métricas</h2>
+                <button class="btn-export" onclick="window.print()">🖨️ Exportar Relatório</button>
             </div>
 
             <div class="metrics-grid">
-                <div class="metric-card" data-metric="score">
-                    <span class="metric-title">Probabilidade de IA</span>
-                    <span class="metric-value">--%</span>
-                    <span class="metric-status">--</span>
+                <div class="metric-card chart-card">
+                    <div class="chart-wrapper">
+                        <canvas id="scoreChart"></canvas>
+                    </div>
                 </div>
-
-                <div class="metric-card" data-metric="perplexity">
+                <div class="metric-card">
+                    <span class="metric-title">Probabilidade Global</span>
+                    <span class="metric-value" id="res-score">0%</span>
+                    <span class="metric-status" id="res-status">Processando...</span>
+                </div>
+                <div class="metric-card">
                     <span class="metric-title">Perplexidade</span>
-                    <span class="metric-value">--</span>
-                    <span class="metric-sub">Padrão de imprevisibilidade</span>
+                    <span class="metric-value" id="res-perplexity">0.0</span>
+                    <span class="metric-sub">Variabilidade lexical</span>
                 </div>
-
-                <div class="metric-card" data-metric="burstiness">
+                <div class="metric-card">
                     <span class="metric-title">Burstiness</span>
-                    <span class="metric-value">--</span>
-                    <span class="metric-sub">Variabilidade das frases</span>
+                    <span class="metric-value" id="res-burstiness">0.0</span>
+                    <span class="metric-sub">Ritmo das frases</span>
                 </div>
             </div>
 
+            <!-- ÁREA DO HEATMAP -->
             <div class="heatmap-container">
-                <h3>Análise por Parágrafo (Mapa de Calor)</h3>
-                <div class="heatmap-content"></div>
+                <h3>Inspeção Parágrafo por Parágrafo (Heatmap):</h3>
+                <div id="heatmap-content" class="heatmap-content"></div>
             </div>
         </section>
 
-        <!-- Seção: Histórico de Análises -->
-        <section class="card-box" id="historico">
+        <!-- HISTÓRICO -->
+        <section class="card-box">
             <div class="card-header">
-                <h2>Histórico de Análises</h2>
-                <button id="btn-clear-history" class="btn-secondary" style="font-size: 0.8rem; padding: 6px 12px;">Limpar Histórico</button>
+                <h2>Histórico de Verificações</h2>
+                <button id="btn-clear-history" class="btn-export btn-danger-outline">Limpar Histórico</button>
             </div>
-            <div id="history-list" class="history-list">
-                <p style="color: #888; font-size: 0.9rem;">Nenhuma análise realizada ainda.</p>
-            </div>
+            <div id="history-list"></div>
         </section>
 
-        <!-- Seção: Sobre o Projeto -->
-        <section class="card-box" id="sobre">
+        <!-- LOGS DE AUDITORIA -->
+        <section id="logs-section" class="card-box" style="display: none;">
             <div class="card-header">
-                <h2>Sobre o Projeto</h2>
+                <h2>Logs de Auditoria do Sistema</h2>
+                <span class="badge badge-admin">Acesso Restrito Admin</span>
             </div>
-            <div class="about-content" style="line-height: 1.6; color: #ccc;">
-                <p>O <strong>DetectorIA</strong> é uma ferramenta acadêmica voltada à análise estatística e detecção de textos gerados sinteticamente por IA Generativa (como ChatGPT, Claude e Gemini).</p>
-                <br>
-                <h3>Como funciona a detecção?</h3>
-                <p>A ferramenta utiliza conceitos de Processamento de Linguagem Natural (PLN) baseados em duas métricas principais:</p>
-                <ul style="margin-left: 20px; margin-top: 10px;">
-                    <li><strong>Perplexidade:</strong> Mede o quão previsível é a escolha das palavras. Textos de IA tendem a ter baixa perplexidade (escolhas muito prováveis e previsíveis).</li>
-                    <li><strong>Burstiness:</strong> Mede a variação no tamanho e estrutura das frases. Textos humanos possuem alta variabilidade (misturam frases curtas e longas), enquanto IAs mantêm um ritmo uniforme.</li>
-                </ul>
+            <div class="table-responsive">
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Usuário</th>
+                            <th>Ação</th>
+                            <th>IP</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-table-body"></tbody>
+                </table>
             </div>
         </section>
 
     </main>
 
+    <!-- MODAL LGPD COMPLETO CONFORME EXIGIDO NO PFC -->
+<div id="modal-lgpd" class="modal-overlay" style="display: none;">
+    <div class="modal-card modal-lg" style="max-height: 80vh; overflow-y: auto;">
+        <span class="modal-close" onclick="closeModal('modal-lgpd')">&times;</span>
+        <h2>Política de Privacidade & Termos LGPD - DetectorIA</h2>
+        <div class="lgpd-text" style="font-size: 0.9rem; line-height: 1.6; text-align: left; color: #ddd;">
+            <p><strong>1. Dados Pessoais Coletados e Finalidade:</strong></p>
+            <ul>
+                <li><strong>Nome Completo e E-mail:</strong> Coletados no cadastro para autenticação e gestão do perfil de acesso.</li>
+                <li><strong>Hash Criptográfico de Senha:</strong> Criptografado via algoritmo seguro (bcrypt) para segurança do acesso.</li>
+                <li><strong>Endereço IP e Timestamp:</strong> Armazenados na tabela de <em>Logs de Auditoria</em> para garantir a rastreabilidade exigida pelo Marco Civil da Internet (Lei nº 12.965/2014).</li>
+                <li><strong>Textos Submetidos para Análise:</strong> Processados temporariamente para extração estatística de padrões linguísticos e cálculo das métricas de IA.</li>
+            </ul>
+            <br>
+            <p><strong>2. Rastreabilidade e Auditoria:</strong> Todas as ações de autenticação, análise de texto e exclusão de histórico geram registros imutáveis no painel de logs, acessíveis exclusivamente aos administradores do sistema.</p>
+            <br>
+            <p><strong>3. Direitos dos Titulares (Art. 18 da LGPD - Lei nº 13.709/2018):</strong> O usuário pode solicitar a confirmação do tratamento, a exclusão do seu histórico ou a revogação do consentimento a qualquer instante utilizando a opção de exclusão no painel ou encerrando sua conta.</p>
+        </div>
+        <button class="btn-primary btn-full" onclick="closeModal('modal-lgpd')" style="margin-top: 1.5rem;">Compreendo e Aceito</button>
+    </div>
+</div>
+
     <footer class="footer">
-        <p>DetectorIA &copy; 2026 - Trabalho de Conclusão de Curso (Sistemas de Informação - UMC)</p>
+        <p>&copy; 2026 DetectorIA</p>
     </footer>
 
     <script src="script.js"></script>

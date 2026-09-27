@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DetectorIA - Acesso ao Sistema</title>
+    <!-- Vincula o novo arquivo CSS -->
+    <link rel="stylesheet" href="login.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="login-page-body">
+
+    <div class="login-container">
+        <div class="logo-container logo-login">
+            <span class="logo-icon">⚡</span>
+            <span class="logo-text">Detector<span class="highlight">IA</span></span>
+        </div>
+
+        <div class="card-box modal-card-standalone">
+            <h2 id="auth-title">Acesso ao Sistema</h2>
+            <p class="auth-subtitle">Entre com suas credenciais para acessar os recursos avançados.</p>
+            
+            <form id="form-auth" onsubmit="handleAuthSubmit(event)">
+                <div id="register-fields" style="display: none;">
+                    <div class="form-group">
+                        <label for="auth-name">Nome Completo</label>
+                        <input type="text" id="auth-name" class="form-control" placeholder="Seu nome completo">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="auth-email">E-mail</label>
+                    <input type="email" id="auth-email" required class="form-control" placeholder="seu@email.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="auth-password">Senha</label>
+                    <input type="password" id="auth-password" required class="form-control" placeholder="••••••••">
+                </div>
+
+                <div id="lgpd-consent" class="lgpd-checkbox" style="display: none;">
+                    <input type="checkbox" id="auth-lgpd-check">
+                    <label for="auth-lgpd-check">Concordo com os Termos e Tratamento de Dados (LGPD).</label>
+                </div>
+
+                <button type="submit" id="auth-btn-submit" class="btn-primary btn-full">Entrar</button>
+            </form>
+            
+            <p class="auth-toggle">
+                <span id="auth-toggle-text">Não tem conta?</span>
+                <a href="#" id="auth-toggle-link" onclick="toggleAuthMode()">Cadastre-se</a>
+            </p>
+
+            <div class="login-back-link">
+                <a href="index.html">← Voltar para o Detector</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
