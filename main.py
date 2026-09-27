@@ -11,6 +11,9 @@ from mysql.connector import pooling
 import jwt
 from passlib.context import CryptContext
 import requests
+import bcrypt
+# Correção para incompatibilidade do passlib com versões recentes do bcrypt
+bcrypt.__about__ = type('about', (), {'__version__': bcrypt.__version__})
 
 # --- CONFIGURAÇÕES DE SEGURANÇA E BANCO DE DADOS ---
 SECRET_KEY = os.getenv("SECRET_KEY", "sua_chave_secreta_super_segura_para_o_tcc")
